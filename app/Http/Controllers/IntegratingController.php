@@ -48,23 +48,50 @@ class IntegratingController extends Controller
             ],
         ]);
 //        'body' => '[{"event":"123123","properties":{"time":1659512632602,"distinct_id":"91304156-cafc-4673-a237-623d1129c801","$insert_id":"29fc2962-6d9c-455d-95ad-95b84f09b9e4"}}]',
-//        dd($response->getBody());
+
         return json_decode((string) $response->getBody(), true);
 
     }
 
     public function getData(){
+//inspectlet auth
         $http= new \GuzzleHttp\Client();
         $credentials = base64_encode('michael@getjones.com:c41497251271b785bbc91f08f3a0f9ea9b6a828b');
-        $a = Http::withHeaders([
+        $getWid = Http::withHeaders([
             'Accept' => 'application/json',
             'Authorization' => ['Basic '.$credentials],
             'Content-Type' => 'application/json',
         ])->get('https://api.inspectlet.com/v1/websites');
-        $b = (array) json_decode($a->body());
+        $b = (array) json_decode($getWid->body());
         $wid = $b['response'][0]->wid;
+//inspectlet get data
+        $getData = Http::withHeaders([
+            'Accept' => 'application/json',
+            'Authorization' => ['Basic '.$credentials],
+            'Content-Type' => 'application/json',
+        ])->post('https://api.inspectlet.com/v1/websites/'.$wid.'/sessions');
+        $response = (array) json_decode($getData->body());
+        $last_data = $response['response']->sessions[0];
+//send data to mixpanel
 
-        Http::post('https://api.inspectlet.com/v1/websites/'.$wid.'/sessions');
-//        return $this->auth();
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+        for ($i = 0; $i < 15; $i++) {
+            $randomString .= $characters[rand(0, $charactersLength - 1)];
+        }
+        $date = (int) round(now()->format('Uu') / pow(10, 6 - 3));
+//        dd('[{"event":"Session recording","properties":{"time":"' . $date . '","distinct_id":"test12tt@mail.ru","$insert_id":"' . $randomString . '"}}]');
+        $c = $http->request('POST', 'https://api.mixpanel.com/import?strict=1&project_id=2353140', [
+            'body' => '[{"event":"Session Records","properties":{"time":' . '1659512632602' . ',"distinct_id":"test@email.com","$insert_id":"'. $randomString . '", "email" : "test@mail.ru"}}]',
+//            'body' => '[{"event":"Session recording","properties":{"time":"' . $date . '","distinct_id":"test12tt@mail.ru","$insert_id":"' . $randomString . '"}}]',
+            'headers' => [
+                'Accept' => 'application/json',
+                'Authorization' => 'Basic dGVzdC5iYjE1NjAubXAtc2VydmljZS1hY2NvdW50OktrWFltZmtGWFBSWkphcWJ6RWo1SG95OXREOGphY0RC',
+                'Content-Type' => 'application/json',
+            ],
+        ]);
+//        'body' => '[{"event":"123123","properties":{"time":1659512632602,"distinct_id":"91304156-cafc-4673-a237-623d1129c801","$insert_id":"29fc2962-6d9c-455d-95ad-95b84f09b9e4"}}]',
+        dd($c->getBody());
     }
 }
